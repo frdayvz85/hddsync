@@ -1,0 +1,309 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#06070c">
+<title>HDD Sync</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  [hidden]{display:none!important}
+  html,body{height:100%}
+  body{
+    font-family:ui-rounded,-apple-system,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    color:#f5f5f7;-webkit-font-smoothing:antialiased;
+    background:
+      radial-gradient(900px 600px at 85% -10%, rgba(94,92,230,.22), transparent 60%),
+      radial-gradient(800px 600px at -15% 105%, rgba(10,132,255,.18), transparent 60%),
+      #06070c;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;-webkit-user-select:none;touch-action:manipulation;
+  }
+  .app{height:100vh;height:100dvh;max-width:480px;margin:0 auto;display:flex;flex-direction:column;
+    padding:calc(env(safe-area-inset-top) + 14px) 18px calc(env(safe-area-inset-bottom) + 14px)}
+
+  /* header */
+  header{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 14px}
+  .brand{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:700;letter-spacing:-.02em}
+  .logo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#0a84ff,#5e5ce6);box-shadow:0 4px 14px rgba(10,132,255,.4)}
+  .logo svg{width:16px;fill:#fff}
+  .conn{display:flex;align-items:center;gap:7px;font-size:13px;color:#98989f;font-weight:500}
+  .dot{width:8px;height:8px;border-radius:50%;background:#8e8e93;transition:.3s}
+  .dot.ok{background:#30d158;box-shadow:0 0 10px rgba(48,209,88,.7)}
+  .dot.warn{background:#ffd60a;box-shadow:0 0 10px rgba(255,214,10,.6)}
+  .dot.off{background:#ff453a;box-shadow:0 0 10px rgba(255,69,58,.6)}
+
+  main{flex:1;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;padding:2px}
+  .busy .filerow{opacity:.45;pointer-events:none}
+
+  /* empty state */
+  .dropcard{border:1.5px dashed rgba(255,255,255,.16);background:rgba(255,255,255,.04);
+    border-radius:22px;min-height:190px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:12px;cursor:pointer;text-align:center;padding:20px;
+    transition:transform .15s,background .2s}
+  .dropcard:active{transform:scale(.98);background:rgba(255,255,255,.07)}
+  .dropicon{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;
+    background:linear-gradient(135deg,#0a84ff,#5e5ce6);box-shadow:0 10px 26px rgba(10,132,255,.35)}
+  .dropicon svg{width:26px;fill:#fff}
+  .dropcard h2{font-size:17px;font-weight:600}
+  .dropcard p{font-size:13px;color:#98989f;line-height:1.5}
+
+  /* file rows */
+  #files{display:flex;flex-direction:column;gap:8px}
+  .filerow{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.055);
+    border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:9px 10px 9px 9px;
+    animation:pop .25s ease both}
+  @keyframes pop{from{opacity:0;transform:translateY(6px) scale(.98)}}
+  .thumb{width:44px;height:44px;border-radius:12px;object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.06)}
+  .tile{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex-shrink:0}
+  .tile svg{width:20px;fill:#fff}
+  .fmeta{flex:1;min-width:0}
+  .fname{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fsub{font-size:12px;color:#98989f;margin-top:2px}
+  .x{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.08);border:0;
+    display:grid;place-items:center;cursor:pointer;flex-shrink:0;transition:background .2s}
+  .x:active{background:rgba(255,255,255,.18)}
+  .x svg{width:11px;fill:#c7c7cc}
+
+  /* category colors */
+  .g-images{background:linear-gradient(135deg,#0a84ff,#5ac8fa)}
+  .g-videos{background:linear-gradient(135deg,#bf5af2,#ff2d78)}
+  .g-audio{background:linear-gradient(135deg,#ff9f0a,#ff453a)}
+  .g-documents{background:linear-gradient(135deg,#30d158,#66e07a)}
+  .g-archives{background:linear-gradient(135deg,#a98963,#715639)}
+  .g-others{background:linear-gradient(135deg,#7c7c82,#5e5ce6)}
+
+  /* result card */
+  .result{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.08);border-radius:20px;
+    padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
+    animation:pop .3s ease both}
+  .ricon{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+    background:linear-gradient(135deg,#30d158,#28b44c);box-shadow:0 8px 20px rgba(48,209,88,.35);
+    animation:zoom .35s cubic-bezier(.2,1.4,.4,1) both}
+  .ricon.err{background:linear-gradient(135deg,#ff453a,#d70015);box-shadow:0 8px 20px rgba(255,69,58,.3)}
+  @keyframes zoom{from{transform:scale(.4);opacity:0}}
+  .ricon svg{width:22px;fill:#fff}
+  .result h3{font-size:16px;font-weight:700}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;justify-content:center}
+  .chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);
+    border-radius:99px;padding:5px 11px;font-size:12.5px;font-weight:600;color:#e5e5ea}
+  .chip i{width:9px;height:9px;border-radius:50%;display:block}
+  .rnote{font-size:12px;color:#98989f}
+  .rnote.bad{color:#ff8f85}
+
+  /* footer */
+  footer{padding-top:12px;display:flex;flex-direction:column;gap:10px}
+  .summary{display:flex;justify-content:space-between;font-size:13.5px;color:#98989f;padding:0 4px;min-height:16px}
+  .summary b{color:#f5f5f7;font-weight:600}
+  .syncbtn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:16px;
+    border:0;border-radius:18px;background:linear-gradient(135deg,#0a84ff,#5e5ce6);color:#fff;
+    font-size:17px;font-weight:600;font-family:inherit;cursor:pointer;
+    box-shadow:0 10px 26px rgba(10,132,255,.35);transition:transform .15s,opacity .2s,box-shadow .2s}
+  .syncbtn svg{width:18px;fill:#fff}
+  .syncbtn:active{transform:scale(.97)}
+  .syncbtn:disabled{opacity:.35;box-shadow:none;cursor:default;transform:none}
+  .spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;
+    border-radius:50%;animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .pwrap{display:flex;align-items:center;gap:10px}
+  .ptrack{flex:1;height:8px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}
+  .pfill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#0a84ff,#5e5ce6);transition:width .2s ease}
+  .ptext{font-size:12.5px;color:#98989f;min-width:38px;text-align:right;font-variant-numeric:tabular-nums}
+  .msg{font-size:13.5px;text-align:center;min-height:18px;color:#98989f;transition:color .2s}
+  .msg.ok{color:#30d158}.msg.err{color:#ff453a}
+</style>
+</head>
+<body>
+<div class="app" id="main">
+  <header>
+    <div class="brand"><span class="logo" id="logo"></span>HDD Sync</div>
+    <div class="conn"><span class="dot" id="dot"></span><span id="stext">Connecting…</span></div>
+  </header>
+
+  <main>
+    <div class="dropcard" id="drop">
+      <div class="dropicon" id="dropicon"></div>
+      <h2>Tap to add files</h2>
+      <p>Photos, videos, documents &amp; more —<br>sorted into folders on your drive automatically</p>
+    </div>
+    <div id="files" hidden></div>
+    <div id="result" hidden></div>
+  </main>
+
+  <footer>
+    <div class="summary" id="summary"></div>
+    <button class="syncbtn" id="syncBt" disabled></button>
+    <div class="pwrap" id="pwrap" hidden>
+      <div class="ptrack"><div class="pfill" id="pfill"></div></div>
+      <div class="ptext" id="ptext">0%</div>
+    </div>
+    <div class="msg" id="msg">Ready</div>
+  </footer>
+</div>
+<input type="file" id="pick" multiple hidden>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const pick=$('pick'),drop=$('drop'),filesEl=$('files'),resultEl=$('result'),
+      syncBt=$('syncBt'),sumEl=$('summary'),pwrap=$('pwrap'),pfill=$('pfill'),
+      ptext=$('ptext'),msg=$('msg'),dot=$('dot'),stext=$('stext'),mainEl=$('main');
+
+window.onerror=(m,s,l)=>setMsg('⚠️ '+m+' (line '+l+')','err');
+
+/* ---------- icons ---------- */
+const U   ='<svg viewBox="0 0 24 24"><path d="M12 3.2l5.4 5.4h-3.4v7.6h-4V8.6H6.6L12 3.2zM4.8 18.6h14.4v2.2H4.8z"/></svg>';
+const X   ='<svg viewBox="0 0 24 24"><path d="M6.4 4.9L4.9 6.4 10.5 12l-5.6 5.6 1.5 1.5L12 13.5l5.6 5.6 1.5-1.5L13.5 12l5.6-5.6-1.5-1.5L12 10.5z"/></svg>';
+const CHK ='<svg viewBox="0 0 24 24"><path d="M9.55 16.6L4.9 11.95l-1.55 1.55 6.2 6.2L21.3 7.95 19.75 6.4z"/></svg>';
+const IMG ='<svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm1 13.9h13.9l-4.4-5.9-3.2 4.1-2.3-2.8-4 4.6zm3.5-9.7a1.9 1.9 0 1 0 0 3.8 1.9 1.9 0 0 0 0-3.8z"/></svg>';
+const VID ='<svg viewBox="0 0 24 24"><path d="M8.4 5.4v13.2c0 .9 1 1.4 1.7.9l10.3-6.6c.7-.4.7-1.4 0-1.8L10.1 4.5c-.7-.5-1.7 0-1.7.9z"/></svg>';
+const AUD ='<svg viewBox="0 0 24 24"><rect x="3.4" y="9.2" width="3.4" height="5.6" rx="1.7"/><rect x="10.3" y="4" width="3.4" height="16" rx="1.7"/><rect x="17.2" y="7" width="3.4" height="10" rx="1.7"/></svg>';
+const DOC ='<svg viewBox="0 0 24 24"><path d="M6 2h7.2L19 7.8V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm6.8 2.6V9h4.4l-4.4-4.4zM8 12.4h8V14H8v-1.6zm0 3.4h8v1.6H8v-1.6z"/></svg>';
+const ARC ='<svg viewBox="0 0 24 24"><path d="M3.5 3.5h17V8h-17V3.5zM5 9.6h14V19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9.6zm4.9 1.6v2.2h4.2v-2.2H9.9z"/></svg>';
+const OTH ='<svg viewBox="0 0 24 24"><circle cx="5.6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18.4" cy="12" r="2"/></svg>';
+$('logo').innerHTML=U; $('dropicon').innerHTML=U;
+const UPBTN=U+'<span>Sync to HDD</span>';
+syncBt.innerHTML=UPBTN;
+
+/* ---------- categories (mirrors server.py) ---------- */
+const CATS={images:{label:'Image',ic:IMG},videos:{label:'Video',ic:VID},
+            audio:{label:'Audio',ic:AUD},documents:{label:'Document',ic:DOC},
+            archives:{label:'Archive',ic:ARC},others:{label:'Other',ic:OTH}};
+const EXT={};
+[['jpg|jpeg|png|gif|webp|bmp|heic|heif|tiff|tif|dng|svg|raw|cr2|nef|arw','images'],
+ ['mp4|mov|m4v|avi|mkv|webm|3gp|mpg|mpeg|wmv','videos'],
+ ['mp3|m4a|wav|aac|flac|ogg|opus|wma','audio'],
+ ['pdf|doc|docx|xls|xlsx|ppt|pptx|txt|rtf|csv|md|epub|pages|numbers|key','documents'],
+ ['zip|rar|7z|tar|gz|bz2|xz','archives']
+].forEach(([e,c])=>e.split('|').forEach(x=>EXT[x]=c));
+const catOf=f=>{
+  const m=(f.name||'').toLowerCase().match(/\.([a-z0-9]+)$/);
+  if(m&&EXT[m[1]])return EXT[m[1]];
+  const t=(f.type||'').split('/')[0];
+  return t==='image'?'images':t==='video'?'videos':t==='audio'?'audio':'others';
+};
+const fmt=n=>{if(n==null)return'';if(n<1024)return n+' B';
+  const u=['KB','MB','GB','TB'];let i=-1;
+  do{n/=1024;i++}while(n>=1024&&i<u.length-1);
+  return n.toFixed(n>=100?0:1)+' '+u[i];};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const canThumb=f=>/^image\/(jpeg|png|gif|webp)$/.test(f.type);   // HEIC won't preview in Safari
+const setMsg=(t,cls)=>{msg.textContent=t;msg.className='msg'+(cls?' '+cls:'');};
+
+/* ---------- state & render ---------- */
+let chosen=[],busy=false;
+
+function render(keepResult){
+  const has=chosen.length>0;
+  drop.hidden=has; filesEl.hidden=!has;
+  if(!keepResult)resultEl.hidden=true;
+  if(!has){sumEl.innerHTML='';}
+  else{
+    const tot=chosen.reduce((s,f)=>s+f.size,0);
+    sumEl.innerHTML='<span><b>'+chosen.length+'</b> file'+(chosen.length>1?'s':'')+' selected</span><span>'+fmt(tot)+'</span>';
+    filesEl.innerHTML=chosen.map((f,i)=>{
+      const k=catOf(f),c=CATS[k];
+      const vis=canThumb(f)
+        ? (f._url||(f._url=URL.createObjectURL(f)),'<img class="thumb" src="'+f._url+'" alt="">')
+        : '<div class="tile g-'+k+'">'+c.ic+'</div>';
+      return '<div class="filerow">'+vis
+        +'<div class="fmeta"><div class="fname">'+esc(f.name)+'</div>'
+        +'<div class="fsub">'+c.label+' · '+fmt(f.size)+'</div></div>'
+        +'<button class="x" data-i="'+i+'">'+X+'</button></div>';
+    }).join('');
+  }
+  syncBt.disabled=!has||busy;
+}
+
+/* ---------- events ---------- */
+drop.onclick=()=>{if(!busy)pick.click();};
+pick.onchange=()=>{
+  chosen=[...pick.files]; pick.value='';
+  resultEl.hidden=true; render();
+  if(!chosen.length)setMsg('No files received — try picking from Photos');
+};
+filesEl.addEventListener('click',e=>{
+  const b=e.target.closest('.x'); if(!b)return;
+  const i=+b.dataset.i, f=chosen[i];
+  if(f&&f._url)URL.revokeObjectURL(f._url);
+  chosen.splice(i,1); render();
+});
+
+syncBt.onclick=()=>{
+  if(busy||!chosen.length)return;
+  busy=true; resultEl.hidden=true; mainEl.classList.add('busy');
+  syncBt.disabled=true;
+  syncBt.innerHTML='<span class="spin"></span><span>Uploading…</span>';
+  pwrap.hidden=false; pfill.style.width='0%'; ptext.textContent='0%';
+  setMsg('Sending to your laptop…');
+
+  const fd=new FormData();
+  chosen.forEach(f=>fd.append('files',f));
+  const xhr=new XMLHttpRequest();
+  xhr.open('POST','/sync');
+  xhr.upload.onprogress=e=>{
+    if(e.lengthComputable){
+      const p=e.loaded/e.total*100;
+      pfill.style.width=p+'%'; ptext.textContent=Math.round(p)+'%';
+    }};
+  const done=()=>{pwrap.hidden=true;busy=false;mainEl.classList.remove('busy');syncBt.innerHTML=UPBTN;};
+
+  xhr.onload=()=>{
+    done();
+    if(xhr.status===200){
+      let r={}; try{r=JSON.parse(xhr.responseText)}catch(e){}
+      showResult(r);
+      chosen.forEach(f=>{if(f._url)URL.revokeObjectURL(f._url)});
+      chosen=[]; render(true);
+      setMsg('✅ Backup complete','ok');
+    }else{
+      let m='HTTP '+xhr.status;
+      try{m=JSON.parse(xhr.responseText).error||m}catch(e){}
+      showResult(null,m); setMsg('❌ '+m,'err');
+      render(true);                       // keep files so you can retry
+    }};
+  xhr.onerror=()=>{
+    done();
+    showResult(null,"Can't reach the laptop");
+    setMsg("❌ Can't reach laptop — same WiFi?",'err');
+    render(true);
+  };
+  xhr.send(fd);
+};
+
+function showResult(r,err){
+  let html;
+  if(err){
+    html='<div class="ricon err">'+X+'</div><h3>Sync failed</h3><div class="rnote">'+esc(err)+'</div>';
+  }else{
+    const counts=r.counts||{}, skipped=(r.skipped||[]).length, failed=(r.failed||[]).length;
+    const chips=Object.entries(counts).filter(([,n])=>n>0)
+      .map(([k,n])=>'<span class="chip"><i class="g-'+k+'"></i>'+n+' '+CATS[k].label.toLowerCase()+(n>1?'s':'')+'</span>').join('');
+    const notes=[];
+    if(skipped)notes.push(skipped+' already on drive');
+    if(failed)notes.push(failed+' failed');
+    html='<div class="ricon">'+CHK+'</div><h3>Synced to HDD</h3>'
+      +(chips?'<div class="chips">'+chips+'</div>':'<div class="rnote">Nothing new to upload</div>')
+      +(notes.length?'<div class="rnote'+(failed?' bad':'')+'">'+notes.join(' · ')+'</div>':'');
+  }
+  resultEl.innerHTML=html; resultEl.hidden=false;
+}
+
+/* ---------- connection + drive status ---------- */
+function ping(){
+  fetch('/health',{cache:'no-store'})
+    .then(r=>r.json()).then(h=>{
+      if(h.hdd===false){dot.className='dot warn';stext.textContent='No HDD';}
+      else if(h.free!=null){dot.className='dot ok';stext.textContent=fmt(h.free)+' free';}
+      else{dot.className='dot ok';stext.textContent='Connected';}
+    })
+    .catch(()=>{dot.className='dot off';stext.textContent='Offline';});
+}
+ping(); setInterval(ping,8000);
+window.addEventListener('pageshow',ping);
+</script>
+</body>
+</html>
