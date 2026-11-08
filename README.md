@@ -80,7 +80,7 @@ hostname -I     # e.g. 192.168.0.105
 ## On the iPhone (one time)
 
 1. Connect to the **same WiFi** as the laptop
-2. Open **Safari** → go to `http://192.168.0.105:8000` (your laptop's IP)
+2. Open **Safari** → go to `http://192.168.0.105:8008` (your laptop's IP)
 3. Tap **Share** → **Add to Home Screen**
 4. Done — it now opens like a normal app with its own icon
 
@@ -143,7 +143,7 @@ iphone_uploads/
 
 ## Tech notes
 
-- Server: **Python / FastAPI**, port `8000`, plain HTTP (local network only)
+- Server: **Python / FastAPI**, port `8008`, plain HTTP (local network only)
 - Client: single-file HTML/JS app, installable as a PWA via Safari
 - Duplicate check: filename + file size (fast; good enough for photo backups)
 - Why not a native iOS app? Building native iOS apps requires a Mac + Xcode.
